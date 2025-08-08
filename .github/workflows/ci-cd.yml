@@ -1,56 +1,37 @@
 name: CI/CD Pipeline
 
 on:
-
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-  
-  permissions:
-    contents: read
-    security-events: write
-
+    branches: [ main ]
 
 jobs:
-  sast:
-    name: Run SAST with CodeQL
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: 'javascript'  # ปรับเป็นภาษาของโปรเจกต์ เช่น python, java
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+    - name: Install dependencies
+      run: npm install
 
-  sca:
-    name: Run SCA with Snyk
-    runs-on: ubuntu-latest
-    needs: sast
+    - name: Run SAST - CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+    - run: github/codeql-action/autobuild@v2
+    - run: github/codeql-action/analyze@v2
 
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16' 
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run Snyk test
-        uses: snyk/actions@v2
-        with:
-          command: test
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    - name: Run SCA - Snyk Scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: test
